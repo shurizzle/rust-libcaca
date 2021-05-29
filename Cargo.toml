@@ -1,0 +1,23 @@
+[package]
+name = "libcaca"
+version = "0.1.0"
+authors = ["shurizzle <shura1991@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libcaca-sys = { path = "../rust-libcaca-sys" }
+
+[features]
+default = []
+ncurses = ["libcaca-sys/ncurses"]
+slang = ["libcaca-sys/slang"]
+gl = ["libcaca-sys/gl"]
+network = ["libcaca-sys/network"]
+imlib2 = ["libcaca-sys/imlib2"]
+conio = ["libcaca-sys/conio"]
+win32 = ["libcaca-sys/win32"]
+x11 = ["libcaca-sys/x11"]
+#cocoa = ["libcaca-sys/cocoa"]
+full = ["ncurses", "slang", "gl", "network", "imlib2", "conio", "win32", "x11"]
