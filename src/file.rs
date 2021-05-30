@@ -40,7 +40,7 @@ impl File {
         Ok(self._read(buffer)?)
     }
 
-    // HINT: if you are searching for gets, stop it. It doesn't exists here.
+    // HINT: if you are searching for gets, stop it. It doesn't exist here.
     //       Use rust.
 
     pub fn is_eof(&self) -> bool {

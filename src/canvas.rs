@@ -1,4 +1,4 @@
-use std::{ffi::CStr, path::Path, ptr, slice, str, sync::Arc};
+use std::{ffi::CStr, marker::PhantomData, path::Path, ptr, str};
 
 use errno::errno;
 use libcaca_sys::{
@@ -8,14 +8,14 @@ use libcaca_sys::{
     caca_draw_thin_box, caca_draw_thin_ellipse, caca_draw_thin_line, caca_draw_thin_polyline,
     caca_draw_thin_triangle, caca_draw_triangle, caca_enable_dirty_rect, caca_fill_ellipse,
     caca_fill_triangle, caca_flip, caca_flop, caca_flush_figlet, caca_free_canvas, caca_free_frame,
-    caca_get_attr, caca_get_canvas_attrs, caca_get_canvas_chars, caca_get_canvas_handle_x,
-    caca_get_canvas_handle_y, caca_get_canvas_height, caca_get_canvas_width, caca_get_char,
-    caca_get_dirty_rect, caca_get_dirty_rect_count, caca_get_frame_count, caca_get_frame_name,
-    caca_gotoxy, caca_invert, caca_put_attr, caca_put_char, caca_put_figchar, caca_put_str,
-    caca_remove_dirty_rect, caca_rotate_180, caca_rotate_left, caca_rotate_right, caca_set_attr,
-    caca_set_canvas_boundaries, caca_set_canvas_handle, caca_set_canvas_size, caca_set_color_ansi,
-    caca_set_color_argb, caca_set_frame, caca_set_frame_name, caca_stretch_left,
-    caca_stretch_right, caca_toggle_attr, caca_unset_attr, caca_wherex, caca_wherey,
+    caca_get_attr, caca_get_canvas_handle_x, caca_get_canvas_handle_y, caca_get_canvas_height,
+    caca_get_canvas_width, caca_get_char, caca_get_dirty_rect, caca_get_dirty_rect_count,
+    caca_get_frame_count, caca_get_frame_name, caca_gotoxy, caca_invert, caca_put_attr,
+    caca_put_char, caca_put_figchar, caca_put_str, caca_remove_dirty_rect, caca_rotate_180,
+    caca_rotate_left, caca_rotate_right, caca_set_attr, caca_set_canvas_boundaries,
+    caca_set_canvas_handle, caca_set_canvas_size, caca_set_color_ansi, caca_set_color_argb,
+    caca_set_frame, caca_set_frame_name, caca_stretch_left, caca_stretch_right, caca_toggle_attr,
+    caca_unset_attr, caca_wherex, caca_wherey,
 };
 
 use crate::{
@@ -23,35 +23,23 @@ use crate::{
     Point, Rectangle, Triangle,
 };
 
-pub(crate) enum InternalCanvas {
-    Borrowed(*mut caca_canvas_t),
-    Owned(*mut caca_canvas_t),
-}
+#[doc(hidden)]
+// It does nothing. I just don't want to leak my pointers.
+pub struct CanvasHolder(pub(crate) *mut caca_canvas_t);
 
-impl InternalCanvas {
+impl CanvasHolder {
     pub(crate) fn as_internal(&self) -> *mut caca_canvas_t {
-        match self {
-            InternalCanvas::Borrowed(ptr) => *ptr,
-            InternalCanvas::Owned(ptr) => *ptr,
-        }
+        self.0
     }
 }
 
-impl Drop for InternalCanvas {
-    fn drop(&mut self) {
-        match self {
-            InternalCanvas::Owned(ptr) => {
-                unsafe { caca_free_canvas(*ptr) };
-            }
-            _ => (),
-        }
-    }
+pub enum Canvas<'a> {
+    Borrowed(*mut caca_canvas_t, PhantomData<&'a ()>),
+    Owned(CanvasHolder),
 }
 
-pub struct Canvas(pub(crate) Arc<InternalCanvas>);
-
-impl Canvas {
-    pub fn new(boundaries: &Boundaries) -> Result<Canvas> {
+impl<'a> Canvas<'a> {
+    pub fn new(boundaries: &Boundaries) -> Result<Canvas<'a>> {
         let ptr = unsafe { caca_create_canvas(boundaries.width as i32, boundaries.height as i32) };
         if ptr.is_null() {
             match errno().0 {
@@ -60,8 +48,7 @@ impl Canvas {
                 what => Err(Error::Unknown(what)),
             }
         } else {
-            let internal = InternalCanvas::Owned(ptr);
-            Ok(Self(Arc::new(internal)))
+            Ok(Self::Owned(CanvasHolder(ptr)))
         }
     }
 
@@ -100,20 +87,9 @@ impl Canvas {
         }
     }
 
-    pub fn chars(&self) -> &[u32] {
-        let len = self.width() * self.height();
-        unsafe { slice::from_raw_parts(caca_get_canvas_chars(self.as_internal()), len) }
-    }
-
-    pub fn attrs(&self) -> &[Attr] {
-        let len = self.width() * self.height();
-        unsafe {
-            slice::from_raw_parts(
-                caca_get_canvas_attrs(self.as_internal()) as *const Attr,
-                len,
-            )
-        }
-    }
+    // I don't want to play with this unsafe shit
+    // caca_get_canvas_chars
+    // caca_get_canvas_attrs
 
     pub fn gotoxy(&self, point: &Point) {
         unsafe { caca_gotoxy(self.as_internal(), point.x as i32, point.y as i32) };
@@ -682,12 +658,36 @@ impl Canvas {
     // TODO: import/export
 
     pub(crate) fn as_internal(&self) -> *mut caca_canvas_t {
-        self.0.as_internal()
+        match self {
+            Self::Owned(internal) => internal.as_internal(),
+            Self::Borrowed(ptr, _) => *ptr,
+        }
+    }
+
+    pub fn is_borrowed(&self) -> bool {
+        match self {
+            Self::Borrowed(_, _) => true,
+            Self::Owned(_) => false,
+        }
+    }
+
+    pub fn is_owned(&self) -> bool {
+        match self {
+            Self::Owned(_) => true,
+            Self::Borrowed(_, _) => false,
+        }
     }
 }
 
-impl Clone for Canvas {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+unsafe impl<'a> Send for Canvas<'a> {}
+
+impl<'a> Drop for Canvas<'a> {
+    fn drop(&mut self) {
+        match self {
+            Canvas::Owned(_) => {
+                unsafe { caca_free_canvas(self.as_internal()) };
+            }
+            _ => (),
+        }
     }
 }

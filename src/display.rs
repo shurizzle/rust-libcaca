@@ -1,55 +1,42 @@
 use errno::errno;
 use libcaca_sys::{
-    caca_create_display, caca_create_display_with_driver, caca_display_t, caca_free_display,
-    caca_get_canvas, caca_get_display_driver, caca_get_display_driver_list,
+    caca_canvas_t, caca_create_display, caca_create_display_with_driver, caca_display_t,
+    caca_free_display, caca_get_canvas, caca_get_display_driver, caca_get_display_driver_list,
     caca_get_display_height, caca_get_display_time, caca_get_display_width, caca_refresh_display,
     caca_set_cursor, caca_set_display_time, caca_set_display_title, caca_set_mouse,
 };
 
-use crate::{
-    canvas::{Canvas, InternalCanvas},
-    error::Error,
-    result::Result,
-    utils::lossy_cstring,
-    Boundaries,
-};
-use std::{borrow::Cow, ffi::CStr, mem, ptr, sync::Arc, time::Duration};
+use crate::{canvas::Canvas, error::Error, result::Result, utils::lossy_cstring, Boundaries};
+use std::{borrow::Cow, ffi::CStr, marker::PhantomData, mem, ptr, time::Duration};
 
-pub struct Display(*mut caca_display_t, Option<Arc<InternalCanvas>>);
+pub struct Display<'a>(*mut caca_display_t, Option<Canvas<'a>>);
 
-impl Display {
-    pub fn new(canvas: Option<&Canvas>) -> Result<Display> {
-        let c_ptr = canvas.map(|x| x.as_internal()).unwrap_or(ptr::null_mut());
-        let canvas = canvas.map(|x| x.0.clone());
+impl<'a> Display<'a> {
+    pub fn new(canvas: Option<Canvas>) -> Result<Display> {
+        let (c_ptr, canvas) = Self::ptr_and_canvas(canvas)?;
         let internal = unsafe { caca_create_display(c_ptr) };
 
-        Self::wrap_ptr(internal, canvas)
+        Ok(Display(internal, canvas))
     }
 
     pub fn new_with_driver<S: AsRef<str>>(
-        canvas: Option<&Canvas>,
+        canvas: Option<Canvas>,
         driver_name: S,
     ) -> Result<Display> {
         let driver_name = lossy_cstring(driver_name);
-        let c_ptr = canvas.map(|x| x.as_internal()).unwrap_or(ptr::null_mut());
-        let canvas = canvas.map(|x| x.0.clone());
+        let (c_ptr, canvas) = Self::ptr_and_canvas(canvas)?;
         let internal = unsafe { caca_create_display_with_driver(c_ptr, driver_name.as_ptr()) };
 
-        Self::wrap_ptr(internal, canvas)
+        Ok(Display(internal, canvas))
     }
 
-    fn wrap_ptr(
-        internal: *mut caca_display_t,
-        internal_canvas: Option<Arc<InternalCanvas>>,
-    ) -> Result<Display> {
-        if internal.is_null() {
-            match errno().0 {
-                libc::ENOMEM => Err(Error::NotEnoughMemory),
-                libc::ENODEV => Err(Error::FailedToOpenGraphicsDevice),
-                what => Err(Error::Unknown(what)),
-            }
-        } else {
-            Ok(Self(internal, internal_canvas))
+    fn ptr_and_canvas(canvas: Option<Canvas>) -> Result<(*mut caca_canvas_t, Option<Canvas>)> {
+        match canvas {
+            Some(canvas) => match canvas {
+                Canvas::Borrowed(_, _) => Err(Error::CanvasInUse),
+                Canvas::Owned(_) => Ok((canvas.as_internal(), Some(canvas))),
+            },
+            None => Ok((ptr::null_mut(), None)),
         }
     }
 
@@ -72,14 +59,9 @@ impl Display {
         res.into_iter().filter(|x| !x.is_empty()).collect()
     }
 
-    pub fn canvas(&self) -> Canvas {
-        match self.1 {
-            Some(ref internal) => Canvas(internal.clone()),
-            None => {
-                let ptr = unsafe { caca_get_canvas(self.as_internal()) };
-                Canvas(Arc::new(InternalCanvas::Borrowed(ptr)))
-            }
-        }
+    pub fn canvas(&self) -> Canvas<'a> {
+        let ptr = unsafe { caca_get_canvas(self.as_internal()) };
+        Canvas::Borrowed(ptr, PhantomData)
     }
 
     pub fn refresh(&self) {
@@ -160,7 +142,9 @@ impl Display {
     }
 }
 
-impl Drop for Display {
+unsafe impl<'a> Send for Display<'a> {}
+
+impl<'a> Drop for Display<'a> {
     fn drop(&mut self) {
         unsafe { caca_free_display(self.as_internal()) };
     }
