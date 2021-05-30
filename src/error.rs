@@ -32,6 +32,8 @@ pub enum Error {
     InvalidFrameIndex,
     #[error("invalid color")]
     InvalidColor,
+    #[error("invalid style")]
+    InvalidStyle,
     #[error("request index is out of bounds")]
     OutOfBounds,
     #[error("an IO error occurred")]

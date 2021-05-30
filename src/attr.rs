@@ -1,7 +1,11 @@
+use std::convert::TryInto;
+
 use libcaca_sys::{
     caca_attr_to_ansi, caca_attr_to_ansi_bg, caca_attr_to_ansi_fg, caca_attr_to_argb64,
     caca_attr_to_rgb12_bg, caca_attr_to_rgb12_fg,
 };
+
+use crate::{error::Error, result::Result, Color, Style};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Attr(u32);
@@ -23,12 +27,12 @@ impl Attr {
         unsafe { caca_attr_to_ansi(self.0) }
     }
 
-    pub fn ansi_fg(&self) -> u8 {
-        unsafe { caca_attr_to_ansi_fg(self.0) }
+    pub fn ansi_fg(&self) -> Result<Color> {
+        unsafe { caca_attr_to_ansi_fg(self.0) as u32 }.try_into()
     }
 
-    pub fn ansi_bg(&self) -> u8 {
-        unsafe { caca_attr_to_ansi_bg(self.0) }
+    pub fn ansi_bg(&self) -> Result<Color> {
+        unsafe { caca_attr_to_ansi_bg(self.0) as u32 }.try_into()
     }
 
     pub fn rgb12_fg(&self) -> u16 {
@@ -45,6 +49,10 @@ impl Attr {
         unsafe { caca_attr_to_argb64(self.0, &mut res as *mut _ as *mut u8) };
 
         res
+    }
+
+    pub fn style(&self) -> Result<Style> {
+        Style::from_bits(self.0 & 0xf).ok_or(Error::InvalidStyle)
     }
 }
 
