@@ -28,6 +28,12 @@ pub enum Error {
     InvalidGamma,
     #[error("invalid contrast")]
     InvalidContrast,
+    #[error("invalid antialiasing")]
+    InvalidAntialias,
+    #[error("invalid charset")]
+    InvalidCharset,
+    #[error("invalid algorithm")]
+    InvalidAlgorithm,
     #[error("invalid frame index")]
     InvalidFrameIndex,
     #[error("invalid color")]

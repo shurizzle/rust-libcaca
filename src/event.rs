@@ -2,14 +2,13 @@ use std::ffi::CStr;
 
 use bitflags::bitflags;
 use libcaca_sys::{
-    caca_event, caca_event_type, caca_event_type_CACA_EVENT_ANY,
-    caca_event_type_CACA_EVENT_KEY_PRESS, caca_event_type_CACA_EVENT_KEY_RELEASE,
-    caca_event_type_CACA_EVENT_MOUSE_MOTION, caca_event_type_CACA_EVENT_MOUSE_PRESS,
-    caca_event_type_CACA_EVENT_MOUSE_RELEASE, caca_event_type_CACA_EVENT_QUIT,
-    caca_event_type_CACA_EVENT_RESIZE, caca_get_event_key_ch, caca_get_event_key_utf32,
-    caca_get_event_key_utf8, caca_get_event_mouse_button, caca_get_event_mouse_x,
-    caca_get_event_mouse_y, caca_get_event_resize_height, caca_get_event_resize_width,
-    caca_get_event_type,
+    caca_event, caca_event_type_CACA_EVENT_ANY, caca_event_type_CACA_EVENT_KEY_PRESS,
+    caca_event_type_CACA_EVENT_KEY_RELEASE, caca_event_type_CACA_EVENT_MOUSE_MOTION,
+    caca_event_type_CACA_EVENT_MOUSE_PRESS, caca_event_type_CACA_EVENT_MOUSE_RELEASE,
+    caca_event_type_CACA_EVENT_QUIT, caca_event_type_CACA_EVENT_RESIZE, caca_get_event_key_ch,
+    caca_get_event_key_utf32, caca_get_event_key_utf8, caca_get_event_mouse_button,
+    caca_get_event_mouse_x, caca_get_event_mouse_y, caca_get_event_resize_height,
+    caca_get_event_resize_width, caca_get_event_type,
 };
 
 use crate::{Boundaries, Point};

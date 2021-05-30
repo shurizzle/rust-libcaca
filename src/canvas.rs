@@ -4,23 +4,23 @@ use errno::errno;
 use libcaca_sys::{
     caca_add_dirty_rect, caca_blit, caca_canvas_set_figfont, caca_canvas_t, caca_clear_canvas,
     caca_clear_dirty_rect_list, caca_create_canvas, caca_create_frame, caca_disable_dirty_rect,
-    caca_draw_box, caca_draw_circle, caca_draw_ellipse, caca_draw_line, caca_draw_polyline,
-    caca_draw_thin_box, caca_draw_thin_ellipse, caca_draw_thin_line, caca_draw_thin_polyline,
-    caca_draw_thin_triangle, caca_draw_triangle, caca_enable_dirty_rect, caca_fill_ellipse,
-    caca_fill_triangle, caca_flip, caca_flop, caca_flush_figlet, caca_free_canvas, caca_free_frame,
-    caca_get_attr, caca_get_canvas_handle_x, caca_get_canvas_handle_y, caca_get_canvas_height,
-    caca_get_canvas_width, caca_get_char, caca_get_dirty_rect, caca_get_dirty_rect_count,
-    caca_get_frame_count, caca_get_frame_name, caca_gotoxy, caca_invert, caca_put_attr,
-    caca_put_char, caca_put_figchar, caca_put_str, caca_remove_dirty_rect, caca_rotate_180,
-    caca_rotate_left, caca_rotate_right, caca_set_attr, caca_set_canvas_boundaries,
-    caca_set_canvas_handle, caca_set_canvas_size, caca_set_color_ansi, caca_set_color_argb,
-    caca_set_frame, caca_set_frame_name, caca_stretch_left, caca_stretch_right, caca_toggle_attr,
-    caca_unset_attr, caca_wherex, caca_wherey,
+    caca_dither_bitmap, caca_draw_box, caca_draw_circle, caca_draw_ellipse, caca_draw_line,
+    caca_draw_polyline, caca_draw_thin_box, caca_draw_thin_ellipse, caca_draw_thin_line,
+    caca_draw_thin_polyline, caca_draw_thin_triangle, caca_draw_triangle, caca_enable_dirty_rect,
+    caca_fill_ellipse, caca_fill_triangle, caca_flip, caca_flop, caca_flush_figlet,
+    caca_free_canvas, caca_free_frame, caca_get_attr, caca_get_canvas_handle_x,
+    caca_get_canvas_handle_y, caca_get_canvas_height, caca_get_canvas_width, caca_get_char,
+    caca_get_dirty_rect, caca_get_dirty_rect_count, caca_get_frame_count, caca_get_frame_name,
+    caca_gotoxy, caca_invert, caca_put_attr, caca_put_char, caca_put_figchar, caca_put_str,
+    caca_remove_dirty_rect, caca_rotate_180, caca_rotate_left, caca_rotate_right, caca_set_attr,
+    caca_set_canvas_boundaries, caca_set_canvas_handle, caca_set_canvas_size, caca_set_color_ansi,
+    caca_set_color_argb, caca_set_frame, caca_set_frame_name, caca_stretch_left,
+    caca_stretch_right, caca_toggle_attr, caca_unset_attr, caca_wherex, caca_wherey,
 };
 
 use crate::{
-    attr::Attr, error::Error, result::Result, utils::lossy_cstring, Boundaries, Circle, Ellipse,
-    Point, Rectangle, Triangle,
+    attr::Attr, dither::Dither, error::Error, result::Result, utils::lossy_cstring, Boundaries,
+    Circle, Ellipse, Point, Rectangle, Triangle,
 };
 
 #[doc(hidden)]
@@ -653,6 +653,21 @@ impl<'a> Canvas<'a> {
         } else {
             Ok(())
         }
+    }
+
+    pub fn dither_bitmap<T: Into<Vec<u8>>>(&self, rect: &Rectangle, dither: &Dither, image: T) {
+        let buffer = image.into();
+        unsafe {
+            caca_dither_bitmap(
+                self.as_internal(),
+                rect.x,
+                rect.y,
+                rect.width as i32,
+                rect.height as i32,
+                dither.as_internal(),
+                buffer.as_ptr() as *const _,
+            )
+        };
     }
 
     // TODO: import/export
