@@ -59,7 +59,7 @@ impl<'a> Display<'a> {
         res.into_iter().filter(|x| !x.is_empty()).collect()
     }
 
-    pub fn canvas(&self) -> Canvas<'a> {
+    pub fn canvas(&'a self) -> Canvas<'a> {
         let ptr = unsafe { caca_get_canvas(self.as_internal()) };
         Canvas::Borrowed(ptr, PhantomData)
     }
