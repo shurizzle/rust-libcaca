@@ -40,6 +40,10 @@ pub enum Error {
     InvalidColor,
     #[error("invalid style")]
     InvalidStyle,
+    #[error("built in font not found")]
+    BuiltinFontNotFound,
+    #[error("invalid font")]
+    InvalidFont,
     #[error("request index is out of bounds")]
     OutOfBounds,
     #[error("an IO error occurred")]

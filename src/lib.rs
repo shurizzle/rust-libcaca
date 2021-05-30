@@ -14,12 +14,13 @@ use libcaca_sys::{
 use libcaca_sys::{caca_get_version, caca_rand};
 
 mod attr;
-mod canvas;
+pub mod canvas;
 mod display;
-mod dither;
+pub mod dither;
 pub mod error;
 pub mod event;
 mod file;
+mod font;
 pub mod result;
 mod utils;
 
@@ -31,6 +32,7 @@ pub use dither::Dither;
 pub use event::Event;
 pub use event::EventMask;
 pub use file::File;
+pub use font::Font;
 
 pub mod prelude {
     pub use crate::error::Error;

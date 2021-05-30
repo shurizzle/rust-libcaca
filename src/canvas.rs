@@ -12,15 +12,16 @@ use libcaca_sys::{
     caca_get_canvas_handle_y, caca_get_canvas_height, caca_get_canvas_width, caca_get_char,
     caca_get_dirty_rect, caca_get_dirty_rect_count, caca_get_frame_count, caca_get_frame_name,
     caca_gotoxy, caca_invert, caca_put_attr, caca_put_char, caca_put_figchar, caca_put_str,
-    caca_remove_dirty_rect, caca_rotate_180, caca_rotate_left, caca_rotate_right, caca_set_attr,
-    caca_set_canvas_boundaries, caca_set_canvas_handle, caca_set_canvas_size, caca_set_color_ansi,
-    caca_set_color_argb, caca_set_frame, caca_set_frame_name, caca_stretch_left,
-    caca_stretch_right, caca_toggle_attr, caca_unset_attr, caca_wherex, caca_wherey,
+    caca_remove_dirty_rect, caca_render_canvas, caca_rotate_180, caca_rotate_left,
+    caca_rotate_right, caca_set_attr, caca_set_canvas_boundaries, caca_set_canvas_handle,
+    caca_set_canvas_size, caca_set_color_ansi, caca_set_color_argb, caca_set_frame,
+    caca_set_frame_name, caca_stretch_left, caca_stretch_right, caca_toggle_attr, caca_unset_attr,
+    caca_wherex, caca_wherey,
 };
 
 use crate::{
-    attr::Attr, dither::Dither, error::Error, result::Result, utils::lossy_cstring, Boundaries,
-    Circle, Ellipse, Point, Rectangle, Triangle,
+    attr::Attr, dither::Dither, error::Error, font::Font, result::Result, utils::lossy_cstring,
+    Boundaries, Circle, Ellipse, Point, Rectangle, Triangle,
 };
 
 #[doc(hidden)]
@@ -668,6 +669,35 @@ impl<'a> Canvas<'a> {
                 buffer.as_ptr() as *const _,
             )
         };
+    }
+
+    pub fn render<T: Into<Vec<u8>>>(
+        &self,
+        font: &Font,
+        buffer: T,
+        bounds: &Boundaries,
+        pitch: i32,
+    ) -> Result<()> {
+        let mut buffer = buffer.into();
+
+        if unsafe {
+            caca_render_canvas(
+                self.as_internal(),
+                font.as_internal(),
+                buffer.as_mut_ptr() as *mut _,
+                bounds.width as i32,
+                bounds.height as i32,
+                pitch,
+            )
+        } != 0
+        {
+            match errno().0 {
+                libc::EINVAL => Err(Error::InvalidSize),
+                what => Err(Error::Unknown(what)),
+            }
+        } else {
+            Ok(())
+        }
     }
 
     // TODO: import/export
