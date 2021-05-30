@@ -1,12 +1,16 @@
 use errno::errno;
 use libcaca_sys::{
     caca_canvas_t, caca_create_display, caca_create_display_with_driver, caca_display_t,
-    caca_free_display, caca_get_canvas, caca_get_display_driver, caca_get_display_driver_list,
-    caca_get_display_height, caca_get_display_time, caca_get_display_width, caca_refresh_display,
-    caca_set_cursor, caca_set_display_time, caca_set_display_title, caca_set_mouse,
+    caca_event, caca_free_display, caca_get_canvas, caca_get_display_driver,
+    caca_get_display_driver_list, caca_get_display_height, caca_get_display_time,
+    caca_get_display_width, caca_get_event, caca_refresh_display, caca_set_cursor,
+    caca_set_display_time, caca_set_display_title, caca_set_mouse,
 };
 
-use crate::{canvas::Canvas, error::Error, result::Result, utils::lossy_cstring, Boundaries};
+use crate::{
+    canvas::Canvas, error::Error, event::Event, event::EventMask, result::Result,
+    utils::lossy_cstring, Boundaries,
+};
 use std::{borrow::Cow, ffi::CStr, marker::PhantomData, mem, ptr, time::Duration};
 
 pub struct Display<'a>(*mut caca_display_t, Option<Canvas<'a>>);
@@ -135,7 +139,43 @@ impl<'a> Display<'a> {
         }
     }
 
-    // TODO: get_event
+    pub fn next_event(&self, mask: EventMask) -> Event {
+        let mut raw_event: caca_event = unsafe { mem::zeroed() };
+        unsafe {
+            caca_get_event(
+                self.as_internal(),
+                mask.bits(),
+                &mut raw_event as *mut _,
+                -1,
+            )
+        };
+        raw_event.into()
+    }
+
+    pub fn poll_event(&self, mask: EventMask, timeout: Duration) -> Option<Event> {
+        let timeout = timeout.as_micros();
+        let timeout = if timeout > (u16::MAX as u128) {
+            u16::MAX
+        } else {
+            timeout as u16
+        };
+
+        let mut raw_event: caca_event = unsafe { mem::zeroed() };
+
+        if unsafe {
+            caca_get_event(
+                self.as_internal(),
+                mask.bits(),
+                &mut raw_event as *mut _,
+                timeout as i32,
+            )
+        } == 0
+        {
+            None
+        } else {
+            Some(raw_event.into())
+        }
+    }
 
     pub(crate) fn as_internal(&self) -> *mut caca_display_t {
         self.0

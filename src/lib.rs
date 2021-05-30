@@ -17,6 +17,7 @@ mod attr;
 mod canvas;
 mod display;
 pub mod error;
+pub mod event;
 mod file;
 pub mod result;
 mod utils;
@@ -25,6 +26,8 @@ pub use attr::Argb;
 pub use attr::Attr;
 pub use canvas::Canvas;
 pub use display::Display;
+pub use event::Event;
+pub use event::EventMask;
 pub use file::File;
 
 pub mod prelude {
